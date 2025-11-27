@@ -11,20 +11,24 @@ const io = new Server(server);
 app.use(express.json());
 app.use(express.static("public"));
 
-// ====== AUTH SIMPLE (users.json) ======
+// ==========================
+//  AUTH SIMPLE (users.json)
+// ==========================
 const dataDir = path.join(__dirname, "data");
 const usersPath = path.join(dataDir, "users.json");
 
 function ensureUsersFile() {
   try {
+    // Crear carpeta /data si no existe
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
     }
+    // Crear users.json vacío si no existe
     if (!fs.existsSync(usersPath)) {
       fs.writeFileSync(usersPath, "[]", "utf8");
     }
   } catch (err) {
-    console.error("Error asegurando users.json:", err);
+    console.error("Error asegurando data/users.json:", err);
   }
 }
 
@@ -62,7 +66,8 @@ app.post("/api/auth/register", (req, res) => {
   const newUser = {
     id: Date.now(),
     username,
-    password // para producción se debería hashear
+    // IMPORTANTE: en producción debería ir hasheada, aquí va simple
+    password
   };
 
   users.push(newUser);
@@ -93,7 +98,9 @@ app.post("/api/auth/login", (req, res) => {
   });
 });
 
-// ====== PERSONAJES Y HABILIDADES ======
+// ==========================
+//   PERSONAJES Y HABILIDADES
+// ==========================
 const characters = require("./game/characters");
 
 function mapAbility(ability, index) {
@@ -102,6 +109,7 @@ function mapAbility(ability, index) {
   const faces = ability.faces || [];
   const cooldown = ability.cooldown || 0;
   const costoEnergia = ability.costoEnergia ?? 0;
+
   const tipoInferido =
     ability.tipo ||
     (typeof ability.daño === "number" && ability.daño < 0 ? "heal" : "damage");
@@ -169,7 +177,9 @@ app.get("/api/characters/enemy-base", (req, res) => {
   }
 });
 
-// ====== SOCKET.IO ======
+// ==========================
+//        SOCKET.IO
+// ==========================
 io.on("connection", socket => {
   console.log("Jugador conectado:", socket.id);
 
@@ -183,7 +193,9 @@ io.on("connection", socket => {
   });
 });
 
-// PUERTO PARA LOCAL Y HOSTING
+// ==========================
+//       INICIAR SERVER
+// ==========================
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
