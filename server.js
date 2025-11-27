@@ -12,19 +12,40 @@ app.use(express.json());
 app.use(express.static("public"));
 
 // ====== AUTH SIMPLE (users.json) ======
-const usersPath = path.join(__dirname, "data", "users.json");
+const dataDir = path.join(__dirname, "data");
+const usersPath = path.join(dataDir, "users.json");
+
+function ensureUsersFile() {
+  try {
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    if (!fs.existsSync(usersPath)) {
+      fs.writeFileSync(usersPath, "[]", "utf8");
+    }
+  } catch (err) {
+    console.error("Error asegurando users.json:", err);
+  }
+}
 
 function loadUsers() {
   try {
+    ensureUsersFile();
     const raw = fs.readFileSync(usersPath, "utf8");
     return JSON.parse(raw);
-  } catch {
+  } catch (err) {
+    console.error("Error leyendo users.json, usando []:", err);
     return [];
   }
 }
 
 function saveUsers(users) {
-  fs.writeFileSync(usersPath, JSON.stringify(users, null, 2), "utf8");
+  try {
+    ensureUsersFile();
+    fs.writeFileSync(usersPath, JSON.stringify(users, null, 2), "utf8");
+  } catch (err) {
+    console.error("Error guardando users.json:", err);
+  }
 }
 
 app.post("/api/auth/register", (req, res) => {
@@ -162,7 +183,8 @@ io.on("connection", socket => {
   });
 });
 
-const PORT = 3000;
+// PUERTO PARA LOCAL Y HOSTING
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
