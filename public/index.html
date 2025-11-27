@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Echoes of the Pact</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #eee;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .card {
+      background: #1c1c1c;
+      padding: 20px;
+      border-radius: 10px;
+      width: 320px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.6);
+    }
+
+    h1, h2 {
+      text-align: center;
+      margin-top: 0;
+    }
+
+    label {
+      display: block;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border-radius: 5px;
+      border: 1px solid #444;
+      background: #222;
+      color: #eee;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 15px;
+      border: none;
+      border-radius: 5px;
+      background: #4a90e2;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #357ab8;
+    }
+
+    .error {
+      color: #ff6b6b;
+      font-size: 13px;
+      margin-top: 10px;
+      min-height: 18px;
+    }
+
+    .menu-btn {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 5px;
+      background: #333;
+      color: #eee;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .menu-btn:hover {
+      background: #444;
+    }
+
+    #menu {
+      display: none;
+    }
+
+    #user-info {
+      font-size: 13px;
+      margin-bottom: 10px;
+      color: #ccc;
+      text-align: center;
+    }
+
+    #screen {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 6px;
+      background: #161616;
+      min-height: 80px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <!-- TARJETA DE LOGIN / REGISTRO -->
+  <div class="card" id="auth">
+    <h1>Echoes of the Pact</h1>
+    <h2 id="form-title">Iniciar sesión</h2>
+
+    <label>Usuario</label>
+    <input type="text" id="username" />
+
+    <label>Contraseña</label>
+    <input type="password" id="password" />
+
+    <button id="login-btn">Iniciar sesión</button>
+    <button id="register-btn">Registrarme</button>
+
+    <div class="error" id="error-msg"></div>
+  </div>
+
+  <!-- TARJETA DE MENÚ PRINCIPAL -->
+  <div class="card" id="menu">
+    <h2>Menú principal</h2>
+    <div id="user-info"></div>
+
+    <button class="menu-btn" id="play-btn">Jugar</button>
+    <button class="menu-btn" id="shop-btn">Tienda</button>
+    <button class="menu-btn" id="inventory-btn">Inventario</button>
+    <button class="menu-btn" id="settings-btn">Configuración</button>
+
+    <!-- Aquí se cargan las pantallas -->
+    <div id="screen"></div>
+  </div>
+
+  <!-- Socket.io -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- PLAY: modos de juego (contra PC + multijugador) -->
+  <script src="/js/screens/play/vsPc/abilities.js"></script>
+  <script src="/js/screens/play/vsPc/difficulty.js"></script>
+  <script src="/js/screens/play/vsPc/battleLogic.js"></script>
+  <script src="/js/screens/play/vsPc/index.js"></script>
+
+  <script src="/js/screens/play/multiplayer/index.js"></script>
+  <script src="/js/screens/play/menu.js"></script>
+  <script src="/js/screens/play/index.js"></script>
+
+  <!-- Otras pantallas -->
+  <script src="/js/screens/shop/index.js"></script>
+  <script src="/js/screens/inventory/index.js"></script>
+  <script src="/js/screens/settings/index.js"></script>
+
+  <!-- Lógica del menú y auth -->
+  <script src="/js/menu.js"></script>
+  <script src="/js/auth.js"></script>
+</body>
+</html>
