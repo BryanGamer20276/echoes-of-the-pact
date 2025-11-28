@@ -1,6 +1,7 @@
+// server.js
 const express = require("express");
 const path = require("path");
-const fs = require("fs");
+const { MongoClient } = require("mongodb");
 
 const app = express();
 
@@ -11,180 +12,161 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 // =====================
-//   RUTAS DE ARCHIVOS
+//    CONFIG MONGODB
 // =====================
-const dataDir = path.join(__dirname, "data");
-const usersPath = path.join(dataDir, "users.json");
-const storyPath = path.join(dataDir, "story.json");
 
-// ---------- helpers generales ----------
-function ensureDataDir() {
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
+// Usa la variable de entorno si existe (Render / .env),
+// y como respaldo la URI que me diste.
+const MONGODB_URI =
+  process.env.MONGODB_URI ||
+  "mongodb+srv://eotp_user:A2f1202sde7EF1fB@cluster0.dmv6frf.mongodb.net/?appName=Cluster0";
+
+// Nombre de la base de datos
+const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "echoes_of_the_pact";
+
+let mongoClient = null;
+let mongoDb = null;
+
+// Conecta (una sola vez) y devuelve la DB
+async function connectToDb() {
+  if (mongoDb) return mongoDb;
+
+  mongoClient = new MongoClient(MONGODB_URI);
+  await mongoClient.connect();
+  mongoDb = mongoClient.db(MONGODB_DB_NAME);
+
+  console.log("[MongoDB] Conectado a", MONGODB_DB_NAME);
+  return mongoDb;
 }
 
-// ---------- USERS / ECONOMÍA ----------
-function ensureUsersFile() {
-  try {
-    ensureDataDir();
-    if (!fs.existsSync(usersPath)) {
-      fs.writeFileSync(usersPath, "[]", "utf8");
-    }
-  } catch (err) {
-    console.error("Error asegurando data/users.json:", err);
-  }
+async function getCollections() {
+  const db = await connectToDb();
+  return {
+    users: db.collection("users"),
+    story: db.collection("storyNodes"),
+  };
 }
 
-function loadUsers() {
-  try {
-    ensureUsersFile();
-    const raw = fs.readFileSync(usersPath, "utf8");
-    const users = JSON.parse(raw);
-    if (!Array.isArray(users)) return [];
-    // normalizar dígitos
-    return users.map((u) => {
-      if (typeof u.digits !== "number" || Number.isNaN(u.digits)) {
-        u.digits = 5;
-      }
-      return u;
-    });
-  } catch (err) {
-    console.error("Error leyendo users.json, usando []:", err);
-    return [];
+// Helper para normalizar un usuario a la forma que espera el frontend
+function normalizeUser(userDoc) {
+  if (!userDoc) return null;
+
+  let digits = userDoc.digits;
+  if (typeof digits !== "number" || Number.isNaN(digits)) {
+    digits = 5;
   }
+
+  return {
+    id: userDoc.id, // numérico, igual que antes
+    username: userDoc.username,
+    digits,
+  };
 }
 
-function saveUsers(users) {
-  try {
-    ensureUsersFile();
-    fs.writeFileSync(usersPath, JSON.stringify(users, null, 2), "utf8");
-  } catch (err) {
-    console.error("Error guardando users.json:", err);
-  }
-}
-
-// ---------- STORY COMPARTIDA ----------
-function ensureStoryFile() {
-  try {
-    ensureDataDir();
-    if (!fs.existsSync(storyPath)) {
-      const initial = { nodes: [] };
-      fs.writeFileSync(storyPath, JSON.stringify(initial, null, 2), "utf8");
-    }
-  } catch (err) {
-    console.error("Error asegurando data/story.json:", err);
-  }
-}
-
-function loadStoryNodes() {
-  try {
-    ensureStoryFile();
-    const raw = fs.readFileSync(storyPath, "utf8");
-    const data = JSON.parse(raw);
-    if (data && Array.isArray(data.nodes)) return data.nodes;
-    return [];
-  } catch (err) {
-    console.error("Error leyendo story.json, usando []:", err);
-    return [];
-  }
-}
-
-function saveStoryNodes(nodes) {
-  try {
-    ensureStoryFile();
-    const payload = {
-      nodes: Array.isArray(nodes) ? nodes : [],
-    };
-    fs.writeFileSync(storyPath, JSON.stringify(payload, null, 2), "utf8");
-  } catch (err) {
-    console.error("Error guardando story.json:", err);
-  }
-}
+// =============================
+//   AUTH: REGISTER / LOGIN
+// =============================
 
 // ============= REGISTER =============
-app.post("/api/auth/register", (req, res) => {
-  const { username, password } = req.body || {};
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { username, password } = req.body || {};
 
-  if (!username || !password) {
-    return res.status(400).json({ ok: false, message: "Faltan datos." });
-  }
+    if (!username || !password) {
+      return res.status(400).json({ ok: false, message: "Faltan datos." });
+    }
 
-  if (username.trim().length < 4) {
-    return res.status(400).json({
-      ok: false,
-      message: "El usuario debe tener al menos 4 caracteres.",
+    if (username.trim().length < 4) {
+      return res.status(400).json({
+        ok: false,
+        message: "El usuario debe tener al menos 4 caracteres.",
+      });
+    }
+
+    if (password.trim().length < 7) {
+      return res.status(400).json({
+        ok: false,
+        message: "La contraseña debe tener al menos 7 caracteres.",
+      });
+    }
+
+    const { users } = await getCollections();
+
+    const existing = await users.findOne({ username });
+    if (existing) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "Usuario ya existe." });
+    }
+
+    const nowId = Date.now(); // mantenemos id numérico como antes
+
+    const newUserDoc = {
+      id: nowId,
+      username,
+      password, // sin hash por ahora
+      digits: 5, // todos empiezan con 5 Dígitos
+      createdAt: new Date(),
+    };
+
+    await users.insertOne(newUserDoc);
+
+    const normalized = normalizeUser(newUserDoc);
+
+    res.json({
+      ok: true,
+      user: normalized,
     });
+  } catch (err) {
+    console.error("[AUTH] Error en /api/auth/register:", err);
+    res
+      .status(500)
+      .json({ ok: false, message: "Error interno al registrar usuario." });
   }
-
-  if (password.trim().length < 7) {
-    return res.status(400).json({
-      ok: false,
-      message: "La contraseña debe tener al menos 7 caracteres.",
-    });
-  }
-
-  const users = loadUsers();
-
-  if (users.find((u) => u.username === username)) {
-    return res
-      .status(400)
-      .json({ ok: false, message: "Usuario ya existe." });
-  }
-
-  const newUser = {
-    id: Date.now(),
-    username,
-    password, // sin hash por ahora
-    digits: 5, // todos empiezan con 5 Dígitos
-  };
-
-  users.push(newUser);
-  saveUsers(users);
-
-  res.json({
-    ok: true,
-    user: {
-      id: newUser.id,
-      username: newUser.username,
-      digits: newUser.digits,
-    },
-  });
 });
 
 // =============== LOGIN ===============
-app.post("/api/auth/login", (req, res) => {
-  const { username, password } = req.body || {};
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { username, password } = req.body || {};
 
-  if (!username || !password) {
-    return res.status(400).json({ ok: false, message: "Faltan datos." });
+    if (!username || !password) {
+      return res.status(400).json({ ok: false, message: "Faltan datos." });
+    }
+
+    const { users } = await getCollections();
+
+    const userDoc = await users.findOne({ username, password });
+
+    if (!userDoc) {
+      return res
+        .status(401)
+        .json({ ok: false, message: "Credenciales inválidas." });
+    }
+
+    // aseguramos dígitos por si viene mal
+    let digits = userDoc.digits;
+    if (typeof digits !== "number" || Number.isNaN(digits)) {
+      digits = 5;
+      await users.updateOne(
+        { _id: userDoc._id },
+        { $set: { digits } }
+      );
+      userDoc.digits = digits;
+    }
+
+    const normalized = normalizeUser(userDoc);
+
+    res.json({
+      ok: true,
+      user: normalized,
+    });
+  } catch (err) {
+    console.error("[AUTH] Error en /api/auth/login:", err);
+    res
+      .status(500)
+      .json({ ok: false, message: "Error interno al iniciar sesión." });
   }
-
-  const users = loadUsers();
-  const user = users.find(
-    (u) => u.username === username && u.password === password
-  );
-
-  if (!user) {
-    return res
-      .status(401)
-      .json({ ok: false, message: "Credenciales inválidas." });
-  }
-
-  // aseguramos dígitos
-  if (typeof user.digits !== "number" || Number.isNaN(user.digits)) {
-    user.digits = 5;
-    saveUsers(users);
-  }
-
-  res.json({
-    ok: true,
-    user: {
-      id: user.id,
-      username: user.username,
-      digits: user.digits,
-    },
-  });
 });
 
 // =====================
@@ -192,75 +174,107 @@ app.post("/api/auth/login", (req, res) => {
 // =====================
 
 // Obtener saldo
-app.get("/api/economy/balance/:userId", (req, res) => {
-  const userId = Number(req.params.userId);
-  if (!userId) {
-    return res
-      .status(400)
-      .json({ ok: false, message: "userId inválido en la URL." });
+app.get("/api/economy/balance/:userId", async (req, res) => {
+  try {
+    const userIdNum = Number(req.params.userId);
+    if (!userIdNum) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "userId inválido en la URL." });
+    }
+
+    const { users } = await getCollections();
+    const userDoc = await users.findOne({ id: userIdNum });
+
+    if (!userDoc) {
+      return res
+        .status(404)
+        .json({ ok: false, message: "Usuario no encontrado." });
+    }
+
+    let digits = userDoc.digits;
+    if (typeof digits !== "number" || Number.isNaN(digits)) {
+      digits = 5;
+      await users.updateOne(
+        { _id: userDoc._id },
+        { $set: { digits } }
+      );
+      userDoc.digits = digits;
+    }
+
+    const normalized = normalizeUser(userDoc);
+
+    res.json({
+      ok: true,
+      user: normalized,
+    });
+  } catch (err) {
+    console.error("[ECONOMY] Error en GET /api/economy/balance:", err);
+    res
+      .status(500)
+      .json({ ok: false, message: "Error interno al obtener saldo." });
   }
-
-  const users = loadUsers();
-  const user = users.find((u) => u.id === userId);
-
-  if (!user) {
-    return res.status(404).json({ ok: false, message: "Usuario no encontrado." });
-  }
-
-  if (typeof user.digits !== "number" || Number.isNaN(user.digits)) {
-    user.digits = 5;
-    saveUsers(users);
-  }
-
-  res.json({
-    ok: true,
-    user: { id: user.id, username: user.username, digits: user.digits },
-  });
 });
 
 // Otorgar Dígitos (ganar recompensas)
-app.post("/api/economy/grant", (req, res) => {
-  const { userId, username, amount, reason } = req.body || {};
+app.post("/api/economy/grant", async (req, res) => {
+  try {
+    const { userId, username, amount, reason } = req.body || {};
 
-  const qty = Number(amount);
-  if (!Number.isFinite(qty)) {
-    return res
-      .status(400)
-      .json({ ok: false, message: "amount debe ser numérico." });
+    const qty = Number(amount);
+    if (!Number.isFinite(qty)) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "amount debe ser numérico." });
+    }
+
+    const { users } = await getCollections();
+
+    let userDoc = null;
+    if (userId) {
+      const userIdNum = Number(userId);
+      userDoc = await users.findOne({ id: userIdNum });
+    } else if (username) {
+      userDoc = await users.findOne({ username });
+    }
+
+    if (!userDoc) {
+      return res
+        .status(404)
+        .json({ ok: false, message: "Usuario no encontrado." });
+    }
+
+    let digits = userDoc.digits;
+    if (typeof digits !== "number" || Number.isNaN(digits)) {
+      digits = 5;
+    }
+
+    digits += qty;
+    if (digits < 0) digits = 0;
+
+    await users.updateOne(
+      { _id: userDoc._id },
+      { $set: { digits } }
+    );
+
+    console.log(
+      `[ECONOMY] +${qty} Dígitos para ${userDoc.username} (${userDoc.id}) – razón: ${
+        reason || "sin razón"
+      }`
+    );
+
+    const updatedUser = normalizeUser({ ...userDoc, digits });
+
+    res.json({
+      ok: true,
+      user: updatedUser,
+    });
+  } catch (err) {
+    console.error("[ECONOMY] Error en POST /api/economy/grant:", err);
+    res
+      .status(500)
+      .json({ ok: false, message: "Error interno al otorgar Dígitos." });
   }
-
-  const users = loadUsers();
-
-  let user = null;
-  if (userId) {
-    user = users.find((u) => u.id === Number(userId));
-  } else if (username) {
-    user = users.find((u) => u.username === username);
-  }
-
-  if (!user) {
-    return res.status(404).json({ ok: false, message: "Usuario no encontrado." });
-  }
-
-  if (typeof user.digits !== "number" || Number.isNaN(user.digits)) {
-    user.digits = 5;
-  }
-
-  user.digits += qty;
-  if (user.digits < 0) user.digits = 0;
-
-  saveUsers(users);
-
-  console.log(
-    `[ECONOMY] +${qty} Dígitos para ${user.username} (${user.id}) – razón: ${
-      reason || "sin razón"
-    }`
-  );
-
-  res.json({
-    ok: true,
-    user: { id: user.id, username: user.username, digits: user.digits },
-  });
 });
 
 // =====================
@@ -268,37 +282,52 @@ app.post("/api/economy/grant", (req, res) => {
 // =====================
 
 // Leer historia (todos los nodos)
-app.get("/api/story", (req, res) => {
+app.get("/api/story", async (req, res) => {
   try {
-    const nodes = loadStoryNodes();
+    const { story } = await getCollections();
+
+    const nodes = await story
+      .find({})
+      .sort({ order: 1, _id: 1 })
+      .toArray();
+
     res.json({ ok: true, nodes });
   } catch (err) {
     console.error("Error en GET /api/story:", err);
-    res
-      .status(500)
-      .json({ ok: false, message: "Error al leer la historia en el servidor." });
+    res.status(500).json({
+      ok: false,
+      message: "Error al leer la historia en el servidor.",
+    });
   }
 });
 
 // Guardar historia (sobrescribe todos los nodos)
-app.post("/api/story/save", (req, res) => {
-  const { nodes } = req.body || {};
-
-  if (!Array.isArray(nodes)) {
-    return res.status(400).json({
-      ok: false,
-      message: "El cuerpo debe contener un array 'nodes'.",
-    });
-  }
-
+app.post("/api/story/save", async (req, res) => {
   try {
-    saveStoryNodes(nodes);
+    const { nodes } = req.body || {};
+
+    if (!Array.isArray(nodes)) {
+      return res.status(400).json({
+        ok: false,
+        message: "El cuerpo debe contener un array 'nodes'.",
+      });
+    }
+
+    const { story } = await getCollections();
+
+    // Estrategia simple: borrar todo e insertar todo de nuevo
+    await story.deleteMany({});
+    if (nodes.length > 0) {
+      await story.insertMany(nodes);
+    }
+
     res.json({ ok: true });
   } catch (err) {
     console.error("Error en POST /api/story/save:", err);
-    res
-      .status(500)
-      .json({ ok: false, message: "Error al guardar la historia en el servidor." });
+    res.status(500).json({
+      ok: false,
+      message: "Error al guardar la historia en el servidor.",
+    });
   }
 });
 
@@ -313,6 +342,15 @@ app.get("/", (req, res) => {
 //    INICIAR SERVER
 // =====================
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Echoes of the Pact corriendo en http://localhost:${PORT}`);
-});
+
+// Nos aseguramos de conectar a Mongo ANTES de empezar a escuchar
+connectToDb()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Echoes of the Pact corriendo en http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("[MongoDB] Error al conectar en el arranque:", err);
+    process.exit(1);
+  });
