@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Echoes of the Pact - Jugar</title>
+    <link rel="stylesheet" href="/game/css/game.css" />
+  </head>
+  <body>
+    <!-- Orbes mágicos de fondo -->
+    <div class="game-bg-orb game-bg-orb--1"></div>
+    <div class="game-bg-orb game-bg-orb--2"></div>
+    <div class="game-bg-orb game-bg-orb--3"></div>
+
+    <!-- Barra superior -->
+    <header class="top-bar">
+      <div class="top-bar__left">
+        <button class="back-button" id="backToMenuBtn">
+          ⟵ Menú
+        </button>
+        <span class="top-bar__title">Echoes of the Pact</span>
+      </div>
+      <div class="top-bar__right">
+        <span class="top-bar__username-label">Invocador:</span>
+        <span class="top-bar__username" id="usernameDisplay">...</span>
+      </div>
+    </header>
+
+    <main class="game-container">
+      <!-- PANTALLA 1: Selección de modo -->
+      <section id="screen-mode-select" class="screen screen--active">
+        <div class="screen-card">
+          <h1 class="screen-title">¿Cómo deseas pactar?</h1>
+          <p class_name="screen-subtitle">
+            Elige tu forma de entrar al santuario de combate.
+          </p>
+
+          <div class="mode-grid">
+            <button
+              class="mode-card"
+              id="btnMultiplayerMode"
+            >
+              <div class="mode-card__label">Multijugador</div>
+              <div class="mode-card__desc">
+                Conéctate con otros invocadores (futuro).
+              </div>
+            </button>
+
+            <button
+              class="mode-card mode-card--primary"
+              id="btnBotMode"
+            >
+              <div class="mode-card__label">Contra un bot</div>
+              <div class="mode-card__desc">
+                Enfrenta a un espíritu controlado por la IA del Pacto.
+              </div>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- PANTALLA 2: Configuración contra bot -->
+      <section id="screen-bot-setup" class="screen screen--hidden">
+        <div class="screen-card">
+          <h1 class="screen-title">Desafiar al Pacto (Bot)</h1>
+          <p class="screen-subtitle">
+            Elige la intensidad del pacto y el avatar que te representará.
+          </p>
+
+          <!-- Paso 1: Dificultad -->
+          <div class="section-block">
+            <h2 class="section-title">Dificultad</h2>
+            <div class="difficulty-grid">
+              <button
+                class="difficulty-option"
+                data-difficulty="facil"
+              >
+                Fácil
+                <span class="difficulty-tag">Tranquilo</span>
+              </button>
+              <button
+                class="difficulty-option"
+                data-difficulty="normal"
+              >
+                Normal
+                <span class="difficulty-tag">Equilibrado</span>
+              </button>
+              <button
+                class="difficulty-option"
+                data-difficulty="dificil"
+              >
+                Difícil
+                <span class="difficulty-tag">Retador</span>
+              </button>
+              <button
+                class="difficulty-option difficulty-option--danger"
+                data-difficulty="hardcore"
+              >
+                Hardcore
+                <span class="difficulty-tag">Sin perdón</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Paso 2: Personaje -->
+          <div class="section-block">
+            <h2 class="section-title">Elige tu avatar</h2>
+            <div class="character-grid">
+              <button
+                class="character-card"
+                data-character="nova"
+              >
+                <div class="character-card__avatar">
+                  <img
+                    src="/auth/avatars/nova.png"
+                    alt="Nova"
+                  />
+                </div>
+                <div class="character-card__name">Nova</div>
+              </button>
+
+              <button
+                class="character-card"
+                data-character="rin"
+              >
+                <div class="character-card__avatar">
+                  <img
+                    src="/auth/avatars/rin.png"
+                    alt="Rin"
+                  />
+                </div>
+                <div class="character-card__name">Rin</div>
+              </button>
+
+              <button
+                class="character-card"
+                data-character="indra"
+              >
+                <div class="character-card__avatar">
+                  <img
+                    src="/auth/avatars/indra.png"
+                    alt="Indra"
+                  />
+                </div>
+                <div class="character-card__name">Indra</div>
+              </button>
+
+              <button
+                class="character-card"
+                data-character="hiro"
+              >
+                <div class="character-card__avatar">
+                  <img
+                    src="/auth/avatars/hiro.png"
+                    alt="Hiro"
+                  />
+                </div>
+                <div class="character-card__name">Hiro</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Acciones -->
+          <div class="actions-row">
+            <button
+              class="btn-secondary"
+              id="backToModeSelectBtn"
+            >
+              ⟵ Volver
+            </button>
+            <button
+              class="btn-primary"
+              id="startBotMatchBtn"
+            >
+              Iniciar combate
+            </button>
+          </div>
+
+          <p class="hint-text" id="botSetupHint"></p>
+        </div>
+      </section>
+
+      <!-- PANTALLA 3: Placeholder multijugador -->
+      <section id="screen-multiplayer-setup" class="screen screen--hidden">
+        <div class="screen-card">
+          <h1 class="screen-title">Multijugador (en construcción)</h1>
+          <p class="screen-subtitle">
+            Aquí luego armaremos salas, códigos de invitación, etc.
+          </p>
+          <div class="actions-row actions-row--center">
+            <button
+              class="btn-secondary"
+              id="backFromMultiplayerBtn"
+            >
+              ⟵ Volver
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Helpers -->
+    <script src="/js/economy.js"></script>
+    <!-- Lógica de bot primero, luego la general -->
+    <script src="/game/js/botSetup.js"></script>
+    <script src="/game/js/gameModeSelect.js"></script>
+  </body>
+</html>

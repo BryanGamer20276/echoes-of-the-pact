@@ -32,17 +32,6 @@ function ensureUsersFile() {
   }
 }
 
-function loadUsers() {
-  try {
-    ensureUsersFile();
-    const raw = fs.readFileSync(usersPath, "utf8");
-    return JSON.parse(raw);
-  } catch (err) {
-    console.error("Error leyendo users.json, usando []:", err);
-    return [];
-  }
-}
-
 function saveUsers(users) {
   try {
     ensureUsersFile();
@@ -52,14 +41,49 @@ function saveUsers(users) {
   }
 }
 
+function loadUsers() {
+  try {
+    ensureUsersFile();
+    const raw = fs.readFileSync(usersPath, "utf8");
+    let users = [];
+
+    try {
+      users = JSON.parse(raw);
+      if (!Array.isArray(users)) {
+        users = [];
+      }
+    } catch (err) {
+      console.error("Error parseando users.json, usando []:", err);
+      users = [];
+    }
+
+    // Garantizar que todos tengan "digits"
+    let changed = false;
+    for (const u of users) {
+      if (typeof u.digits !== "number") {
+        u.digits = 5; // usuarios antiguos empiezan con 5
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      saveUsers(users);
+    }
+
+    return users;
+  } catch (err) {
+    console.error("Error leyendo users.json, usando []:", err);
+    return [];
+  }
+}
+
 // ============= REGISTER =============
+// Todos los usuarios nuevos empiezan con 5 dígitos
 app.post("/api/auth/register", (req, res) => {
   const { username, password } = req.body || {};
 
   if (!username || !password) {
-    return res
-      .status(400)
-      .json({ ok: false, message: "Faltan datos." });
+    return res.status(400).json({ ok: false, message: "Faltan datos." });
   }
 
   if (username.trim().length < 4) {
@@ -89,6 +113,7 @@ app.post("/api/auth/register", (req, res) => {
     username,
     // En producción debería ir hasheada, aquí simple
     password,
+    digits: 5, // economía: todos empiezan con 5 dígitos
   };
 
   users.push(newUser);
@@ -96,7 +121,11 @@ app.post("/api/auth/register", (req, res) => {
 
   res.json({
     ok: true,
-    user: { id: newUser.id, username: newUser.username },
+    user: {
+      id: newUser.id,
+      username: newUser.username,
+      digits: newUser.digits,
+    },
   });
 });
 
@@ -105,9 +134,7 @@ app.post("/api/auth/login", (req, res) => {
   const { username, password } = req.body || {};
 
   if (!username || !password) {
-    return res
-      .status(400)
-      .json({ ok: false, message: "Faltan datos." });
+    return res.status(400).json({ ok: false, message: "Faltan datos." });
   }
 
   const users = loadUsers();
@@ -121,9 +148,100 @@ app.post("/api/auth/login", (req, res) => {
       .json({ ok: false, message: "Credenciales inválidas." });
   }
 
+  // Aquí user ya tiene "digits" garantizado por loadUsers()
   res.json({
     ok: true,
-    user: { id: user.id, username: user.username },
+    user: {
+      id: user.id,
+      username: user.username,
+      digits: user.digits,
+    },
+  });
+});
+
+// =====================
+//   ECONOMÍA: DÍGITOS
+// =====================
+
+// Dar / quitar dígitos a un usuario por ID
+// Body: { userId, amount, reason? }
+app.post("/api/economy/grant", (req, res) => {
+  const { userId, amount, reason } = req.body || {};
+  const delta = Number(amount);
+
+  if (!userId || Number.isNaN(delta)) {
+    return res.status(400).json({
+      ok: false,
+      message: "Parámetros inválidos.",
+    });
+  }
+
+  const users = loadUsers();
+  const index = users.findIndex(
+    (u) => String(u.id) === String(userId)
+  );
+
+  if (index === -1) {
+    return res
+      .status(404)
+      .json({ ok: false, message: "Usuario no encontrado." });
+  }
+
+  const user = users[index];
+
+  if (typeof user.digits !== "number") {
+    user.digits = 5;
+  }
+
+  user.digits += delta;
+
+  if (user.digits < 0) {
+    user.digits = 0;
+  }
+
+  users[index] = user;
+  saveUsers(users);
+
+  console.log(
+    `[ECONOMY] userId=${userId} => ${delta} dígitos` +
+      (reason ? ` | reason: ${reason}` : "")
+  );
+
+  return res.json({
+    ok: true,
+    user: {
+      id: user.id,
+      username: user.username,
+      digits: user.digits,
+    },
+  });
+});
+
+// Obtener balance de un usuario
+app.get("/api/economy/balance/:userId", (req, res) => {
+  const { userId } = req.params;
+
+  const users = loadUsers();
+  const user = users.find((u) => String(u.id) === String(userId));
+
+  if (!user) {
+    return res
+      .status(404)
+      .json({ ok: false, message: "Usuario no encontrado." });
+  }
+
+  if (typeof user.digits !== "number") {
+    user.digits = 5;
+    saveUsers(users);
+  }
+
+  return res.json({
+    ok: true,
+    user: {
+      id: user.id,
+      username: user.username,
+      digits: user.digits,
+    },
   });
 });
 

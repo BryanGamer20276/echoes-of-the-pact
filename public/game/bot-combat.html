@@ -1,0 +1,191 @@
+<!-- public/game/bot-combat.html -->
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Echoes of the Pact - Combate vs Bot</title>
+    <link rel="stylesheet" href="/game/css/game.css" />
+  </head>
+  <body>
+    <!-- Orbes mágicos de fondo -->
+    <div class="game-bg-orb game-bg-orb--1"></div>
+    <div class="game-bg-orb game-bg-orb--2"></div>
+    <div class="game-bg-orb game-bg-orb--3"></div>
+
+    <!-- Barra superior -->
+    <header class="top-bar">
+      <div class="top-bar__left">
+        <button class="back-button" id="backToGameModesBtn">
+          ⟵ Modos
+        </button>
+        <span class="top-bar__title">Echoes of the Pact</span>
+      </div>
+      <div class="top-bar__right">
+        <span class="top-bar__username-label">Invocador:</span>
+        <span class="top-bar__username" id="battleUsernameDisplay">...</span>
+      </div>
+    </header>
+
+    <main class="battle-root">
+      <section class="battle-main">
+        <!-- Cabecera con avatares y VS -->
+        <div class="battle-header">
+          <div class="battle-character battle-character--player">
+            <div class="battle-character__avatar">
+              <img
+                id="playerAvatarImg"
+                src="/auth/avatars/nova.png"
+                alt="Jugador"
+              />
+            </div>
+            <div class="battle-character__name" id="playerNameLabel">
+              Tú
+            </div>
+            <div class="battle-character__role">Invocador del Pacto</div>
+          </div>
+
+          <div class="battle-vs">
+            <span class="battle-vs__text">VS</span>
+          </div>
+
+          <div class="battle-character battle-character--enemy">
+            <div class="battle-character__avatar">
+              <img
+                id="enemyAvatarImg"
+                src="/auth/avatars/indra.png"
+                alt="Enemigo"
+              />
+            </div>
+            <div class="battle-character__name" id="enemyNameLabel">
+              Eco del Pacto
+            </div>
+            <div class="battle-character__role" id="enemyDifficultyLabel">
+              Bot
+            </div>
+          </div>
+        </div>
+
+        <!-- Cuerpo del combate -->
+        <div class="battle-body">
+          <!-- Columna jugador -->
+          <div class="battle-column battle-column--left">
+            <h2 class="battle-column__title">Tu aura</h2>
+            <div class="battle-stats-card">
+              <div class="stat-row">
+                <span>Vida</span>
+                <span id="playerHpText">100 / 100</span>
+              </div>
+              <div class="stat-bar stat-bar--hp">
+                <div class="stat-bar__fill" id="playerHpBar"></div>
+              </div>
+
+              <div class="stat-row">
+                <span>Energía</span>
+                <span id="playerEnergyText">60 / 60</span>
+              </div>
+              <div class="stat-bar stat-bar--energy">
+                <div class="stat-bar__fill" id="playerEnergyBar"></div>
+              </div>
+            </div>
+
+            <div class="battle-abilities-card">
+              <h3 class="battle-abilities__title">Tus habilidades</h3>
+              <div
+                id="playerAbilitiesList"
+                class="battle-abilities-list"
+              ></div>
+            </div>
+          </div>
+
+          <!-- Columna central: dado + acciones -->
+          <div class="battle-column battle-column--center">
+            <div class="battle-dice-area">
+              <div class="battle-dice" id="diceVisual">?</div>
+              <div class="battle-dice-text" id="diceResultText">
+                Lanza el dado para invocar el pacto.
+              </div>
+            </div>
+
+            <div class="battle-actions">
+              <button class="btn-primary" id="rollDiceBtn">
+                Lanzar dado
+              </button>
+              <button class="btn-secondary" id="passTurnBtn">
+                Pasar turno
+              </button>
+              <button class="btn-secondary btn-special" id="specialAbilityBtn">
+                Habilidad especial
+              </button>
+            </div>
+
+            <div class="battle-turn-indicator" id="turnIndicator">
+              Preparando batalla...
+            </div>
+          </div>
+
+          <!-- Columna enemigo -->
+          <div class="battle-column battle-column--right">
+            <h2 class="battle-column__title">Aura enemiga</h2>
+            <div class="battle-stats-card battle-stats-card--enemy">
+              <div class="stat-row">
+                <span>Vida</span>
+                <span id="enemyHpText">100 / 100</span>
+              </div>
+              <div class="stat-bar stat-bar--hp">
+                <div class="stat-bar__fill" id="enemyHpBar"></div>
+              </div>
+
+              <div class="stat-row">
+                <span>Energía</span>
+                <span id="enemyEnergyText">60 / 60</span>
+              </div>
+              <div class="stat-bar stat-bar--energy">
+                <div class="stat-bar__fill" id="enemyEnergyBar"></div>
+              </div>
+            </div>
+
+            <div class="battle-abilities-card battle-abilities-card--enemy">
+              <h3 class="battle-abilities__title">Habilidades del bot</h3>
+              <div
+                id="enemyAbilitiesList"
+                class="battle-abilities-list battle-abilities-list--enemy"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Historial -->
+        <div class="battle-history-card">
+          <div class="battle-history-header">
+            <span>Historial del pacto</span>
+          </div>
+          <div id="battleLog" class="battle-log"></div>
+        </div>
+      </section>
+
+      <!-- Overlay fin de partida -->
+      <div
+        id="battleEndOverlay"
+        class="battle-end-overlay battle-end-overlay--hidden"
+      >
+        <div class="battle-end-modal">
+          <h2 id="battleEndTitle"></h2>
+          <p id="battleEndText"></p>
+          <p id="battleEndRewardText"></p>
+          <div class="battle-end-actions">
+            <button id="battleRetryBtn" class="btn-secondary">
+              Reintentar
+            </button>
+            <button id="battleToMenuBtn" class="btn-primary">
+              Volver al menú
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Economía y lógica de combate -->
+    <script src="/js/economy.js"></script>
+    <script src="/game/js/botCombat.js"></script>
+  </body>
+</html>

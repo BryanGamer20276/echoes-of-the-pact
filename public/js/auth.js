@@ -163,7 +163,7 @@ registerForm.addEventListener("submit", async (e) => {
     return;
   }
 
-  // Guardamos usuario pendiente de elegir avatar
+  // Guardamos usuario pendiente de elegir avatar/personaje
   pendingUser = data.user;
   registerForm.reset();
   clearMessage(registerMessage);
@@ -203,13 +203,14 @@ loginForm.addEventListener("submit", async (e) => {
     return;
   }
 
-  // Guardar usuario y conservar avatar si ya existía
+  // Guardar usuario y conservar avatar / personaje si ya existía
   try {
     let mergedUser = data.user;
     const prevRaw = localStorage.getItem("eotpUser");
     if (prevRaw) {
       const prev = JSON.parse(prevRaw);
       if (prev && prev.username === data.user.username) {
+        // prev.avatar / prev.characterId se mantienen si existen
         mergedUser = { ...prev, ...data.user };
       }
     }
@@ -240,17 +241,18 @@ if (avatarCards && avatarCards.length) {
         return;
       }
 
-      const chosenAvatar = card.dataset.avatar;
+      const chosenAvatar = card.dataset.avatar; // "nova" | "rin" | "indra" | "hiro"
       if (!chosenAvatar) return;
 
       // Marcar visualmente
       avatarCards.forEach((c) => c.classList.remove("selected"));
       card.classList.add("selected");
 
-      // Guardar usuario completo con avatar
+      // Guardar usuario completo con avatar y personaje predeterminado
       const fullUser = {
         ...pendingUser,
         avatar: chosenAvatar,
+        characterId: chosenAvatar, // ← aquí ligamos selección con el personaje
       };
 
       try {
