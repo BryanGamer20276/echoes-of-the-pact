@@ -2,160 +2,201 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Echoes of the Pact</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #111;
-      color: #eee;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-
-    .card {
-      background: #1c1c1c;
-      padding: 20px;
-      border-radius: 10px;
-      width: 320px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.6);
-    }
-
-    h1, h2 {
-      text-align: center;
-      margin-top: 0;
-    }
-
-    label {
-      display: block;
-      margin-top: 10px;
-      font-size: 14px;
-    }
-
-    input {
-      width: 100%;
-      padding: 8px;
-      margin-top: 5px;
-      border-radius: 5px;
-      border: 1px solid #444;
-      background: #222;
-      color: #eee;
-    }
-
-    button {
-      width: 100%;
-      padding: 10px;
-      margin-top: 15px;
-      border: none;
-      border-radius: 5px;
-      background: #4a90e2;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #357ab8;
-    }
-
-    .error {
-      color: #ff6b6b;
-      font-size: 13px;
-      margin-top: 10px;
-      min-height: 18px;
-    }
-
-    .menu-btn {
-      width: 100%;
-      padding: 10px;
-      margin-top: 10px;
-      border: none;
-      border-radius: 5px;
-      background: #333;
-      color: #eee;
-      cursor: pointer;
-      text-align: left;
-    }
-
-    .menu-btn:hover {
-      background: #444;
-    }
-
-    #menu {
-      display: none;
-    }
-
-    #user-info {
-      font-size: 13px;
-      margin-bottom: 10px;
-      color: #ccc;
-      text-align: center;
-    }
-
-    #screen {
-      margin-top: 15px;
-      padding: 10px;
-      border-radius: 6px;
-      background: #161616;
-      min-height: 80px;
-      font-size: 14px;
-    }
-  </style>
+  <title>Echoes of the Pact - Acceso</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/css/styles.css" />
 </head>
-<body>
-  <!-- TARJETA DE LOGIN / REGISTRO -->
-  <div class="card" id="auth">
-    <h1>Echoes of the Pact</h1>
-    <h2 id="form-title">Iniciar sesión</h2>
-
-    <label>Usuario</label>
-    <input type="text" id="username" />
-
-    <label>Contraseña</label>
-    <input type="password" id="password" />
-
-    <button id="login-btn">Iniciar sesión</button>
-    <button id="register-btn">Registrarme</button>
-
-    <div class="error" id="error-msg"></div>
+<body class="mode-choice" data-form="login">
+  <div class="magic-bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="stars"></div>
   </div>
 
-  <!-- TARJETA DE MENÚ PRINCIPAL -->
-  <div class="card" id="menu">
-    <h2>Menú principal</h2>
-    <div id="user-info"></div>
+  <main class="auth-shell">
+    <header class="auth-header">
+      <h1>Echoes of the Pact</h1>
+      <p class="subtitle">Un portal entre pactos, ecos y secretos.</p>
+    </header>
 
-    <button class="menu-btn" id="play-btn">Jugar</button>
-    <button class="menu-btn" id="shop-btn">Tienda</button>
-    <button class="menu-btn" id="inventory-btn">Inventario</button>
-    <button class="menu-btn" id="settings-btn">Configuración</button>
+    <!-- WRAPPER QUE CONTIENE LOS TRES PANELES -->
+    <div class="panel-wrapper">
+      <!-- PANTALLA ELECCIÓN LOGIN/REGISTER -->
+      <section class="panel choice-panel">
+        <p class="choice-text">
+          Elige cómo entrar al pacto.
+        </p>
+        <div class="choice-buttons">
+          <button id="btn-go-login" class="btn primary">
+            Iniciar sesión
+          </button>
+          <button id="btn-go-register" class="btn ghost">
+            Registrarme
+          </button>
+        </div>
+      </section>
 
-    <!-- Aquí se cargan las pantallas -->
-    <div id="screen"></div>
-  </div>
+      <!-- PANTALLA FORMULARIOS -->
+      <section class="panel form-panel">
+        <div class="form-header">
+          <button id="btn-back" class="icon-btn" title="Volver">
+            ←
+          </button>
+          <div class="form-titles">
+            <h2 id="form-title">Iniciar sesión</h2>
+            <p id="form-subtitle">
+              Ingresa tus credenciales para continuar el pacto.
+            </p>
+          </div>
+        </div>
 
-  <!-- Socket.io -->
-  <script src="/socket.io/socket.io.js"></script>
+        <!-- FORM LOGIN -->
+        <form id="login-form" class="auth-form">
+          <label class="field">
+            <span>Usuario</span>
+            <input
+              type="text"
+              id="login-username"
+              autocomplete="username"
+              required
+            />
+          </label>
 
-  <!-- PLAY: modos de juego (contra PC + multijugador) -->
-  <script src="/js/screens/play/vsPc/abilities.js"></script>
-  <script src="/js/screens/play/vsPc/difficulty.js"></script>
-  <script src="/js/screens/play/vsPc/battleLogic.js"></script>
-  <script src="/js/screens/play/vsPc/index.js"></script>
+          <label class="field">
+            <span>Contraseña</span>
+            <input
+              type="password"
+              id="login-password"
+              autocomplete="current-password"
+              required
+            />
+          </label>
 
-  <script src="/js/screens/play/multiplayer/index.js"></script>
-  <script src="/js/screens/play/menu.js"></script>
-  <script src="/js/screens/play/index.js"></script>
+          <button type="submit" class="btn primary block">
+            Entrar al pacto
+          </button>
 
-  <!-- Otras pantallas -->
-  <script src="/js/screens/shop/index.js"></script>
-  <script src="/js/screens/inventory/index.js"></script>
-  <script src="/js/screens/settings/index.js"></script>
+          <p class="switch-text">
+            ¿No tienes cuenta?
+            <button type="button" class="link-btn" id="switch-to-register">
+              Crear una nueva
+            </button>
+          </p>
 
-  <!-- Lógica del menú y auth -->
-  <script src="/js/menu.js"></script>
+          <p id="login-message" class="message"></p>
+        </form>
+
+        <!-- FORM REGISTER -->
+        <form id="register-form" class="auth-form hidden">
+          <label class="field">
+            <span>Usuario</span>
+            <input
+              type="text"
+              id="register-username"
+              autocomplete="off"
+              required
+            />
+            <small>Mínimo 4 caracteres.</small>
+          </label>
+
+          <label class="field">
+            <span>Contraseña</span>
+            <input
+              type="password"
+              id="register-password"
+              autocomplete="new-password"
+              required
+            />
+            <small>Mínimo 7 caracteres.</small>
+          </label>
+
+          <button type="submit" class="btn primary block">
+            Sellar nuevo pacto
+          </button>
+
+          <p class="switch-text">
+            ¿Ya tienes cuenta?
+            <button type="button" class="link-btn" id="switch-to-login">
+              Inicia sesión
+            </button>
+          </p>
+
+          <p id="register-message" class="message"></p>
+        </form>
+      </section>
+
+      <!-- PANTALLA SELECCIÓN DE AVATAR -->
+      <section class="panel avatar-panel">
+        <div class="avatar-header">
+          <h2>Elige tu eco</h2>
+          <p>
+            Tu pacto necesita un rostro. Elige la forma con la que los ecos te
+            reconocerán.
+          </p>
+        </div>
+
+        <div class="avatar-grid">
+          <!-- NOVA -->
+          <button class="avatar-card" data-avatar="nova">
+            <div class="avatar-img-wrapper">
+              <img
+                src="/auth/avatars/nova.png"
+                alt="Nova, el último hechicero"
+              />
+            </div>
+            <div class="avatar-info">
+              <h3>Nova</h3>
+              <p>El último hechicero, guardián de los ecos arcanos.</p>
+            </div>
+          </button>
+
+          <!-- RIN -->
+          <button class="avatar-card" data-avatar="rin">
+            <div class="avatar-img-wrapper">
+              <img
+                src="/auth/avatars/rin.png"
+                alt="Rin, el asesino más despiadado"
+              />
+            </div>
+            <div class="avatar-info">
+              <h3>Rin</h3>
+              <p>El asesino más despiadado de la historia, invisible entre sombras.</p>
+            </div>
+          </button>
+
+          <!-- INDRA -->
+          <button class="avatar-card" data-avatar="indra">
+            <div class="avatar-img-wrapper">
+              <img
+                src="/auth/avatars/indra.png"
+                alt="Indra, el berserker más temido"
+              />
+            </div>
+            <div class="avatar-info">
+              <h3>Indra</h3>
+              <p>El berserker más temido, una tormenta de acero y furia.</p>
+            </div>
+          </button>
+
+          <!-- HIRO -->
+          <button class="avatar-card" data-avatar="hiro">
+            <div class="avatar-img-wrapper">
+              <img
+                src="/auth/avatars/hiro.png"
+                alt="Hiro, el caballero noble"
+              />
+            </div>
+            <div class="avatar-info">
+              <h3>Hiro</h3>
+              <p>El caballero mas noble, escudo de los débiles y voz del honor.</p>
+            </div>
+          </button>
+        </div>
+      </section>
+    </div>
+  </main>
+
   <script src="/js/auth.js"></script>
 </body>
 </html>

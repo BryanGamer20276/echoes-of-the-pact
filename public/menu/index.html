@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Echoes of the Pact - Menú</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/menu/css/menu.css" />
+</head>
+<body>
+  <div class="magic-bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="stars"></div>
+  </div>
+
+  <main class="menu-shell">
+    <!-- BARRA SUPERIOR -->
+    <header class="menu-header">
+      <div class="title-block">
+        <h1 class="game-name">Echoes of the Pact</h1>
+        <p class="game-tagline">Donde los pactos resuenan más allá del tiempo.</p>
+      </div>
+      <div class="user-chip">
+        <span class="chip-label">Vinculado como</span>
+        <span id="user-name" class="chip-name">Usuario</span>
+      </div>
+    </header>
+
+    <!-- CONTENIDO -->
+    <section class="menu-main">
+      <!-- PANEL IZQUIERDO: LORE / AVATAR -->
+      <div class="lore-panel">
+        <div class="lore-card">
+          <div class="glyph-ring">
+            <div class="glyph-inner"></div>
+            <!-- AQUÍ VA LA FOTO DEL PERSONAJE -->
+            <img id="user-avatar" class="avatar-image" alt="Avatar del pacto" />
+          </div>
+          <div class="lore-text">
+            <h2 id="greeting-text">Bienvenido</h2>
+            <p>
+              El eco ha reconocido tu nombre. Desde este santuario podrás
+              elegir tu próximo movimiento entre reliquias, combates y secretos.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL DERECHO: BOTONES PRINCIPALES -->
+      <div class="actions-panel">
+        <div class="button-column">
+          <button id="btn-play" class="menu-btn btn-play">
+            <div class="btn-main">
+              <span class="btn-title">Jugar</span>
+              <span class="btn-subtitle">Entrar al pacto activo</span>
+            </div>
+            <span class="btn-tag">Acción</span>
+          </button>
+
+          <button id="btn-inventory" class="menu-btn btn-inventory">
+            <div class="btn-main">
+              <span class="btn-title">Inventario</span>
+              <span class="btn-subtitle">Reliquias, cartas y artefactos</span>
+            </div>
+            <span class="btn-tag">Colección</span>
+          </button>
+
+          <button id="btn-shop" class="menu-btn btn-shop">
+            <div class="btn-main">
+              <span class="btn-title">Tienda</span>
+              <span class="btn-subtitle">Intercambia ecos por poder</span>
+            </div>
+            <span class="btn-tag">Economía</span>
+          </button>
+
+          <button id="btn-settings" class="menu-btn btn-settings">
+            <div class="btn-main">
+              <span class="btn-title">Configuración</span>
+              <span class="btn-subtitle">Ajusta la experiencia y el eco</span>
+            </div>
+            <span class="btn-tag">Sistema</span>
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Lógica de cada botón -->
+  <script src="/menu/js/buttons/playButton.js"></script>
+  <script src="/menu/js/buttons/inventoryButton.js"></script>
+  <script src="/menu/js/buttons/shopButton.js"></script>
+  <script src="/menu/js/buttons/settingsButton.js"></script>
+
+  <!-- Lógica del menú -->
+  <script src="/menu/js/menu.js"></script>
+</body>
+</html>
