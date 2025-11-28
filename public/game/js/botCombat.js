@@ -1,7 +1,4 @@
-// public/game/js/botCombat.js
 (function () {
-  const avatars = ["nova", "rin", "indra", "hiro"];
-
   const difficultyConfig = {
     facil: {
       label: "Fácil",
@@ -29,77 +26,30 @@
     },
   };
 
-  const playerAbilities = [
+  // Fallback por si algo sale mal con el registro (para no romper nada)
+  const fallbackCharacterIds = ["nova", "rin", "indra", "hiro"];
+  const fallbackAbilities = [
     {
-      id: "strike",
+      id: "fallback_a1",
       name: "Golpe Arcano",
       description: "Daño moderado al enemigo, escalado por el dado.",
+      diceFaces: [1, 2, 3, 4, 5, 6],
+      cooldown: 0,
       energyCost: 8,
+      effect: { damage: 10, heal: 0, target: "enemy", area: false, overTime: null },
+      isSpecial: false,
       type: "damage",
-      multiplier: 3,
     },
     {
-      id: "flare",
-      name: "Llama del Pacto",
-      description: "Daño alto pero consume más energía.",
-      energyCost: 14,
-      type: "damage",
-      multiplier: 5,
-    },
-    {
-      id: "aegis",
-      name: "Aura de Aegis",
-      description: "Convierte el valor del dado en curación para ti.",
-      energyCost: 10,
-      type: "heal",
-      multiplier: 3,
-    },
-    {
-      id: "rift",
+      id: "fallback_a4",
       name: "Ruptura Etérea (Especial)",
-      description:
-        "Golpe masivo al enemigo y pequeña curación. Solo cada 3 turnos.",
-      energyCost: 18,
-      type: "special",
-      multiplier: 7,
+      description: "Golpe masivo al enemigo y pequeña curación.",
+      diceFaces: [4, 5, 6],
       cooldown: 3,
-    },
-  ];
-
-  const enemyAbilities = [
-    {
-      id: "shadowStrike",
-      name: "Garra Umbría",
-      description: "Ataque físico impregnado de eco oscuro.",
-      energyCost: 8,
-      type: "damage",
-      multiplier: 3,
-    },
-    {
-      id: "voidFlare",
-      name: "Llama del Vacío",
-      description: "Daño intenso canalizado desde el abismo.",
-      energyCost: 14,
-      type: "damage",
-      multiplier: 5,
-    },
-    {
-      id: "voidMend",
-      name: "Cicatriz del Vacío",
-      description: "Usa el dado para sanar sus propias heridas.",
-      energyCost: 10,
-      type: "heal",
-      multiplier: 3,
-    },
-    {
-      id: "abyssRift",
-      name: "Ruptura Abismal (Especial)",
-      description:
-        "Golpe devastador y leve drenaje de vida. Solo cada 3 turnos.",
       energyCost: 18,
+      effect: { damage: 20, heal: 5, target: "enemy", area: false, overTime: null },
+      isSpecial: true,
       type: "special",
-      multiplier: 7,
-      cooldown: 3,
     },
   ];
 
@@ -107,7 +57,7 @@
   let player = null;
   let enemy = null;
   let difficultyKey = "normal";
-  let rewardDigits = 20; // base 20, luego sumamos por dificultad
+  let rewardDigits = 20;
 
   let enemyDamageMultiplier = 1;
 
@@ -115,7 +65,10 @@
   let turnNumber = 1;
   let gameOver = false;
 
-  let selectedAbilityId = "strike";
+  let playerAbilities = [];
+  let enemyAbilities = [];
+
+  let selectedAbilityId = null;
   let playerSpecialCooldown = 0;
   let enemySpecialCooldown = 0;
 
@@ -154,7 +107,105 @@
   let battleRetryBtn;
   let battleToMenuBtn;
 
-  // ======= Utilidades =======
+  // ======= Utilidades de personajes =======
+
+  function getCharacterRegistry() {
+    return window.EOTP_Characters || null;
+  }
+
+  function getAllCharacterIds() {
+    const registry = getCharacterRegistry();
+    if (registry && typeof registry.getIds === "function") {
+      const ids = registry.getIds();
+      if (Array.isArray(ids) && ids.length > 0) return ids;
+    }
+    return fallbackCharacterIds;
+  }
+
+  function getCharacterConfig(characterId) {
+    const registry = getCharacterRegistry();
+    if (registry && typeof registry.getOrDefault === "function") {
+      const cfg = registry.getOrDefault(characterId);
+      if (cfg) return cfg;
+    }
+
+    // fallback básico
+    return {
+      id: characterId || "invocador",
+      displayName: (characterId || "Invocador").toString(),
+      avatarKey: characterId || "nova",
+      portrait: `/auth/avatars/${characterId || "nova"}.png`,
+      maxHp: 100,
+      maxEnergy: 60,
+      baseStats: {
+        attack: 20,
+        magic: 20,
+        defense: 10,
+        speed: 10,
+      },
+      abilities: [],
+    };
+  }
+
+  /**
+   * Adapta el array de habilidades de un personaje (ability1.js, ability2.js, etc.)
+   * al formato interno que usa el combate.
+   * Convención: la 4ª habilidad (índice 3) se considera "especial".
+   */
+  function adaptCharacterAbilities(charCfg) {
+    const rawList = Array.isArray(charCfg.abilities) ? charCfg.abilities : [];
+    if (!rawList.length) {
+      return fallbackAbilities.map((a) => ({ ...a }));
+    }
+
+    return rawList.map((src, index) => {
+      const effect = src.effect || {};
+      const isSpecial = index === 3; // ability4 = especial
+      let type = "damage";
+
+      if (isSpecial) {
+        type = "special";
+      } else if ((effect.heal || 0) > 0 && (effect.damage || 0) <= 0) {
+        type = "heal";
+      } else {
+        type = "damage";
+      }
+
+      return {
+        id: src.id || `${charCfg.id}_a${index + 1}`,
+        name: src.name || `Habilidad ${index + 1}`,
+        description: src.description || "",
+        diceFaces: Array.isArray(src.diceFaces) && src.diceFaces.length
+          ? src.diceFaces.slice()
+          : [1, 2, 3, 4, 5, 6],
+        cooldown: src.cooldown || 0,
+        energyCost: src.energyCost || 0,
+        effect: {
+          damage: effect.damage || 0,
+          heal: effect.heal || 0,
+          target: effect.target || "enemy",
+          area: !!effect.area,
+          overTime: effect.overTime || null,
+        },
+        isSpecial,
+        type,
+      };
+    });
+  }
+
+  function getPlayerNormalAbilities() {
+    return playerAbilities.filter((a) => !a.isSpecial);
+  }
+
+  function getPlayerSpecialAbility() {
+    return playerAbilities.find((a) => a.isSpecial) || null;
+  }
+
+  function getEnemyAbilitiesList() {
+    return enemyAbilities || [];
+  }
+
+  // ======= Utilidades generales =======
 
   function getCurrentUser() {
     try {
@@ -183,7 +234,7 @@
   }
 
   function rollDice() {
-    return Math.floor(Math.random() * 6) + 1; // 1-6
+    return Math.floor(Math.random() * 6) + 1;
   }
 
   function updateDiceVisual(value, owner) {
@@ -276,55 +327,64 @@
     playerAbilityCards = [];
     playerSpecialCdEl = null;
 
-    playerAbilities.forEach((ability) => {
+    const normals = getPlayerNormalAbilities();
+    const special = getPlayerSpecialAbility();
+
+    normals.forEach((ability, idx) => {
       const card = document.createElement("button");
       card.className = "ability-card";
       card.type = "button";
       card.setAttribute("data-ability-id", ability.id);
 
-      if (ability.type === "special") {
-        card.classList.add("ability-card--special");
-      }
+      const isSelected =
+        selectedAbilityId === null
+          ? idx === 0
+          : ability.id === selectedAbilityId;
 
-      const isSelected = ability.id === selectedAbilityId;
       if (isSelected) {
         card.classList.add("ability-card--selected");
+        selectedAbilityId = ability.id;
       }
-
-      const metaCd =
-        ability.type === "special"
-          ? '<span class="ability-meta ability-meta--cd" id="playerSpecialCdLabel">Listo</span>'
-          : "";
 
       card.innerHTML = `
         <div class="ability-card__header">
           <div class="ability-card__name">${ability.name}</div>
           <div class="ability-card__meta">
             <span class="ability-meta ability-meta--cost">${ability.energyCost} EN</span>
-            ${metaCd}
           </div>
         </div>
         <p class="ability-card__desc">${ability.description}</p>
       `;
 
-      // Solo habilidades normales se pueden seleccionar con click
-      if (ability.type !== "special") {
-        card.addEventListener("click", () => {
-          selectedAbilityId = ability.id;
-          playerAbilityCards.forEach((c) =>
-            c.classList.remove("ability-card--selected")
-          );
-          card.classList.add("ability-card--selected");
-        });
-      }
+      card.addEventListener("click", () => {
+        selectedAbilityId = ability.id;
+        playerAbilityCards.forEach((c) =>
+          c.classList.remove("ability-card--selected")
+        );
+        card.classList.add("ability-card--selected");
+      });
 
       playerAbilitiesList.appendChild(card);
       playerAbilityCards.push(card);
-
-      if (ability.type === "special") {
-        playerSpecialCdEl = card.querySelector("#playerSpecialCdLabel");
-      }
     });
+
+    if (special) {
+      const card = document.createElement("div");
+      card.className = "ability-card ability-card--special";
+      card.innerHTML = `
+        <div class="ability-card__header">
+          <div class="ability-card__name">${special.name}</div>
+          <div class="ability-card__meta">
+            <span class="ability-meta ability-meta--cost">${special.energyCost} EN</span>
+            <span class="ability-meta ability-meta--cd" id="playerSpecialCdLabel">Listo</span>
+          </div>
+        </div>
+        <p class="ability-card__desc">${special.description}</p>
+        <p class="ability-card__hint">Se usa con el botón "Habilidad especial".</p>
+      `;
+      playerAbilitiesList.appendChild(card);
+      playerSpecialCdEl = card.querySelector("#playerSpecialCdLabel");
+    }
 
     updateSpecialCooldownUI();
   }
@@ -333,10 +393,10 @@
     if (!enemyAbilitiesList) return;
     enemyAbilitiesList.innerHTML = "";
 
-    enemyAbilities.forEach((ability) => {
+    getEnemyAbilitiesList().forEach((ability) => {
       const card = document.createElement("div");
       card.className = "ability-card";
-      if (ability.type === "special") {
+      if (ability.isSpecial) {
         card.classList.add("ability-card--special");
       }
       card.innerHTML = `
@@ -356,38 +416,39 @@
     return playerAbilities.find((a) => a.id === id) || null;
   }
 
-  function getEnemyUsableAbilities() {
-    return enemyAbilities;
-  }
-
   // ======= Resolución de habilidades =======
 
   function resolveAbility(actor, ability, diceValue) {
     const source = actor === "player" ? player : enemy;
     const target = actor === "player" ? enemy : player;
 
+    const faces = Array.isArray(ability.diceFaces)
+      ? ability.diceFaces
+      : [1, 2, 3, 4, 5, 6];
+
+    const triggered = faces.length === 0 || faces.includes(diceValue);
+
     let damage = 0;
     let heal = 0;
 
-    if (ability.type === "damage" || ability.type === "special") {
-      let base = diceValue * ability.multiplier;
-      if (actor === "enemy") {
-        base *= enemyDamageMultiplier;
+    if (triggered) {
+      const eff = ability.effect || {};
+      if (eff.damage) {
+        damage = eff.damage;
+        if (actor === "enemy") {
+          damage = Math.round(damage * enemyDamageMultiplier);
+        }
+        target.hp = clamp(target.hp - damage, 0, target.maxHp);
       }
-      damage = Math.round(base);
-      target.hp = clamp(target.hp - damage, 0, target.maxHp);
-
-      // Especial: pequeña curación
-      if (ability.type === "special") {
-        heal = Math.round(diceValue * 2);
+      if (eff.heal) {
+        heal = eff.heal;
         source.hp = clamp(source.hp + heal, 0, source.maxHp);
       }
-    } else if (ability.type === "heal") {
-      heal = Math.round(diceValue * ability.multiplier);
-      source.hp = clamp(source.hp + heal, 0, source.maxHp);
+
+      // TODO: en otra iteración podemos procesar eff.overTime (DoT/HoT)
     }
 
-    return { damage, heal };
+    return { damage, heal, triggered };
   }
 
   function buildStatusLine() {
@@ -471,7 +532,7 @@
       addLogEntry("<strong>Error:</strong> Ninguna habilidad seleccionada.");
       return;
     }
-    if (ability.type === "special") {
+    if (ability.isSpecial) {
       addLogEntry(
         "La habilidad especial se usa con el botón <strong>Habilidad especial</strong>."
       );
@@ -494,16 +555,26 @@
       0,
       player.maxEnergy
     );
-    const { damage, heal } = resolveAbility("player", ability, diceValue);
+
+    const { damage, heal, triggered } = resolveAbility(
+      "player",
+      ability,
+      diceValue
+    );
 
     let summary = `<strong>${player.name}</strong> usa <strong>${ability.name}</strong> (dado: ${diceValue}).<br>`;
 
-    if (damage > 0) {
-      summary += `Inflige <strong>${damage}</strong> de daño a ${enemy.name}.<br>`;
+    if (!triggered) {
+      summary += `El resultado del dado no activa la técnica, el eco se disipa sin efecto.<br>`;
+    } else {
+      if (damage > 0) {
+        summary += `Infliges <strong>${damage}</strong> de daño a ${enemy.name}.<br>`;
+      }
+      if (heal > 0) {
+        summary += `Te curas <strong>${heal}</strong> de vida.<br>`;
+      }
     }
-    if (heal > 0) {
-      summary += `Se cura <strong>${heal}</strong> de vida.<br>`;
-    }
+
     summary += buildStatusLine();
 
     addLogEntry(summary);
@@ -520,7 +591,6 @@
   function handlePassTurn() {
     if (gameOver || currentTurn !== "player") return;
 
-    // Pequeña recuperación de energía por pasar turno
     const recovered = 6;
     const before = player.energy;
     player.energy = clamp(player.energy + recovered, 0, player.maxEnergy);
@@ -547,8 +617,11 @@
   function handleSpecialAbility() {
     if (gameOver || currentTurn !== "player") return;
 
-    const ability = playerAbilities.find((a) => a.type === "special");
-    if (!ability) return;
+    const ability = getPlayerSpecialAbility();
+    if (!ability) {
+      addLogEntry("Este avatar no tiene habilidad especial configurada.");
+      return;
+    }
 
     if (playerSpecialCooldown > 0) {
       addLogEntry(
@@ -576,16 +649,25 @@
     playerSpecialCooldown = ability.cooldown || 3;
     updateSpecialCooldownUI();
 
-    const { damage, heal } = resolveAbility("player", ability, diceValue);
+    const { damage, heal, triggered } = resolveAbility(
+      "player",
+      ability,
+      diceValue
+    );
 
     let summary = `<strong>${player.name}</strong> desata su <strong>${ability.name}</strong> (dado: ${diceValue}).<br>`;
 
-    if (damage > 0) {
-      summary += `Inflige <strong>${damage}</strong> de daño a ${enemy.name}.<br>`;
+    if (!triggered) {
+      summary += `El pacto especial no se alinea con el dado; el eco se desvanece sin efecto.<br>`;
+    } else {
+      if (damage > 0) {
+        summary += `Infliges <strong>${damage}</strong> de daño a ${enemy.name}.<br>`;
+      }
+      if (heal > 0) {
+        summary += `Te curas <strong>${heal}</strong> de vida.<br>`;
+      }
     }
-    if (heal > 0) {
-      summary += `Se cura <strong>${heal}</strong> de vida.<br>`;
-    }
+
     summary += buildStatusLine();
 
     addLogEntry(summary);
@@ -601,11 +683,24 @@
 
   // ======= IA del bot =======
 
-  function chooseEnemyAbility() {
-    const abilities = getEnemyUsableAbilities();
+  function classifyEnemyAbility(ability) {
+    if (ability.isSpecial) return "special";
+    if ((ability.effect.heal || 0) > 0 && (ability.effect.damage || 0) <= 0) {
+      return "heal";
+    }
+    return "damage";
+  }
 
-    // Si puede usar especial y tiene vida algo baja, a veces la usa
-    const special = abilities.find((a) => a.type === "special");
+  function chooseEnemyAbility() {
+    const abilities = getEnemyAbilitiesList();
+    if (!abilities.length) return null;
+
+    const special = abilities.find((a) => classifyEnemyAbility(a) === "special");
+    const healAb = abilities.find((a) => classifyEnemyAbility(a) === "heal");
+    const damages = abilities.filter(
+      (a) => classifyEnemyAbility(a) === "damage"
+    );
+
     if (
       special &&
       enemySpecialCooldown <= 0 &&
@@ -615,8 +710,6 @@
       return special;
     }
 
-    // Si está bajo de vida, prioriza curar
-    const healAb = abilities.find((a) => a.type === "heal");
     if (
       healAb &&
       enemy.energy >= healAb.energyCost &&
@@ -625,9 +718,20 @@
       return healAb;
     }
 
-    // Si tiene energía suficiente, usa daño fuerte a veces
-    const strong = abilities.find((a) => a.id === "voidFlare");
-    const basic = abilities.find((a) => a.id === "shadowStrike");
+    damages.sort(
+      (a, b) => (a.effect.damage || 0) - (b.effect.damage || 0)
+    );
+
+    let basic = null;
+    let strong = null;
+
+    if (damages.length === 1) {
+      basic = damages[0];
+      strong = damages[0];
+    } else if (damages.length > 1) {
+      basic = damages[0];
+      strong = damages[damages.length - 1];
+    }
 
     if (strong && enemy.energy >= strong.energyCost && Math.random() < 0.55) {
       return strong;
@@ -637,7 +741,6 @@
       return basic;
     }
 
-    // Si no tiene energía para nada decente, "pasa turno" recuperando
     return null;
   }
 
@@ -675,19 +778,27 @@
       enemy.maxEnergy
     );
 
-    if (ability.type === "special") {
+    if (ability.isSpecial) {
       enemySpecialCooldown = ability.cooldown || 3;
     }
 
-    const { damage, heal } = resolveAbility("enemy", ability, diceValue);
+    const { damage, heal, triggered } = resolveAbility(
+      "enemy",
+      ability,
+      diceValue
+    );
 
     let summary = `<strong>${enemy.name}</strong> usa <strong>${ability.name}</strong> (dado: ${diceValue}).<br>`;
 
-    if (damage > 0) {
-      summary += `Te inflige <strong>${damage}</strong> de daño.<br>`;
-    }
-    if (heal > 0) {
-      summary += `Se cura <strong>${heal}</strong> de vida.<br>`;
+    if (!triggered) {
+      summary += `El eco del bot falla al activar la técnica.<br>`;
+    } else {
+      if (damage > 0) {
+        summary += `Te inflige <strong>${damage}</strong> de daño.<br>`;
+      }
+      if (heal > 0) {
+        summary += `Se cura <strong>${heal}</strong> de vida.<br>`;
+      }
     }
 
     summary += buildStatusLine();
@@ -708,7 +819,6 @@
   async function grantVictoryReward() {
     const econ = window.EOTP_Economy;
 
-    // Si la economía no está cargada, no rompemos nada
     if (!econ || typeof econ.grantToCurrentUser !== "function") {
       if (battleEndRewardText) {
         battleEndRewardText.textContent =
@@ -835,25 +945,36 @@
     rewardDigits = baseReward + diffData.rewardBonus;
     enemyDamageMultiplier = diffData.enemyDamageMultiplier;
 
-    const playerCharacterId = config.character || user.avatar || "nova";
+    const allCharIds = getAllCharacterIds();
+    const fallbackId = allCharIds[0] || "nova";
 
-    const enemyCandidates = avatars.filter((a) => a !== playerCharacterId);
+    const playerCharacterId = config.character || user.avatar || fallbackId;
+
+    const enemyCandidates = allCharIds.filter((a) => a !== playerCharacterId);
     const enemyCharacterId =
       enemyCandidates[Math.floor(Math.random() * enemyCandidates.length)] ||
-      "indra";
+      fallbackId;
+
+    const playerCharCfg = getCharacterConfig(playerCharacterId);
+    const enemyCharCfg = getCharacterConfig(enemyCharacterId);
+
+    playerAbilities = adaptCharacterAbilities(playerCharCfg);
+    enemyAbilities = adaptCharacterAbilities(enemyCharCfg);
+
+    const firstNormal = getPlayerNormalAbilities()[0];
+    selectedAbilityId = firstNormal ? firstNormal.id : null;
 
     const playerName = user.username || "Invocador";
-    const enemyName = "Eco del Pacto";
+    const enemyName = `Eco de ${enemyCharCfg.displayName || enemyCharacterId}`;
 
-    // Stats base
-    const playerMaxHp = 100;
-    const playerMaxEnergy = 60;
-    const enemyBaseHp = 90;
-    const enemyBaseEnergy = 60;
+    const playerMaxHp = playerCharCfg.maxHp || 100;
+    const playerMaxEnergy = playerCharCfg.maxEnergy || 60;
+    const enemyBaseHp = enemyCharCfg.maxHp || 90;
+    const enemyBaseEnergy = enemyCharCfg.maxEnergy || 60;
 
     player = {
       name: playerName,
-      characterId: playerCharacterId,
+      characterId: playerCharCfg.id,
       maxHp: playerMaxHp,
       hp: playerMaxHp,
       maxEnergy: playerMaxEnergy,
@@ -862,14 +983,13 @@
 
     enemy = {
       name: enemyName,
-      characterId: enemyCharacterId,
+      characterId: enemyCharCfg.id,
       maxHp: Math.round(enemyBaseHp * diffData.enemyHpMultiplier),
       hp: Math.round(enemyBaseHp * diffData.enemyHpMultiplier),
       maxEnergy: enemyBaseEnergy,
       energy: enemyBaseEnergy,
     };
 
-    // UI inicial
     if (battleUsernameDisplay) {
       battleUsernameDisplay.textContent = playerName;
     }
@@ -882,11 +1002,19 @@
     if (enemyDifficultyLabel) {
       enemyDifficultyLabel.textContent = `Bot • ${diffData.label}`;
     }
+
+    const playerPortrait =
+      playerCharCfg.portrait ||
+      `/auth/avatars/${playerCharCfg.avatarKey || playerCharCfg.id || "nova"}.png`;
+    const enemyPortrait =
+      enemyCharCfg.portrait ||
+      `/auth/avatars/${enemyCharCfg.avatarKey || enemyCharCfg.id || "indra"}.png`;
+
     if (playerAvatarImg) {
-      playerAvatarImg.src = `/auth/avatars/${playerCharacterId}.png`;
+      playerAvatarImg.src = playerPortrait;
     }
     if (enemyAvatarImg) {
-      enemyAvatarImg.src = `/auth/avatars/${enemyCharacterId}.png`;
+      enemyAvatarImg.src = enemyPortrait;
     }
 
     renderPlayerAbilities();
@@ -894,7 +1022,6 @@
     updateStatsUI();
     updateTurnIndicator();
 
-    // Eventos
     if (backToGameModesBtn) {
       backToGameModesBtn.addEventListener("click", () => {
         window.location.href = "/game/index.html";
@@ -923,7 +1050,6 @@
       });
     }
 
-    // Mensaje inicial
     addLogEntry(
       `<strong>Comienza el pacto.</strong> ` +
         `Dificultad: ${diffData.label}. ` +
