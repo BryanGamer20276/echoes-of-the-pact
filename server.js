@@ -12,23 +12,47 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 // =====================
-//   AUTH CON users.json
+//   RUTAS DE ARCHIVOS
 // =====================
 const dataDir = path.join(__dirname, "data");
 const usersPath = path.join(dataDir, "users.json");
+const storyPath = path.join(dataDir, "story.json");
 
+// ---------- helpers generales ----------
+function ensureDataDir() {
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+}
+
+// ---------- USERS / ECONOMÍA ----------
 function ensureUsersFile() {
   try {
-    // Crear carpeta /data si no existe
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-    // Crear users.json vacío si no existe
+    ensureDataDir();
     if (!fs.existsSync(usersPath)) {
       fs.writeFileSync(usersPath, "[]", "utf8");
     }
   } catch (err) {
     console.error("Error asegurando data/users.json:", err);
+  }
+}
+
+function loadUsers() {
+  try {
+    ensureUsersFile();
+    const raw = fs.readFileSync(usersPath, "utf8");
+    const users = JSON.parse(raw);
+    if (!Array.isArray(users)) return [];
+    // normalizar dígitos
+    return users.map((u) => {
+      if (typeof u.digits !== "number" || Number.isNaN(u.digits)) {
+        u.digits = 5;
+      }
+      return u;
+    });
+  } catch (err) {
+    console.error("Error leyendo users.json, usando []:", err);
+    return [];
   }
 }
 
@@ -41,44 +65,45 @@ function saveUsers(users) {
   }
 }
 
-function loadUsers() {
+// ---------- STORY COMPARTIDA ----------
+function ensureStoryFile() {
   try {
-    ensureUsersFile();
-    const raw = fs.readFileSync(usersPath, "utf8");
-    let users = [];
-
-    try {
-      users = JSON.parse(raw);
-      if (!Array.isArray(users)) {
-        users = [];
-      }
-    } catch (err) {
-      console.error("Error parseando users.json, usando []:", err);
-      users = [];
+    ensureDataDir();
+    if (!fs.existsSync(storyPath)) {
+      const initial = { nodes: [] };
+      fs.writeFileSync(storyPath, JSON.stringify(initial, null, 2), "utf8");
     }
-
-    // Garantizar que todos tengan "digits"
-    let changed = false;
-    for (const u of users) {
-      if (typeof u.digits !== "number") {
-        u.digits = 5; // usuarios antiguos empiezan con 5
-        changed = true;
-      }
-    }
-
-    if (changed) {
-      saveUsers(users);
-    }
-
-    return users;
   } catch (err) {
-    console.error("Error leyendo users.json, usando []:", err);
+    console.error("Error asegurando data/story.json:", err);
+  }
+}
+
+function loadStoryNodes() {
+  try {
+    ensureStoryFile();
+    const raw = fs.readFileSync(storyPath, "utf8");
+    const data = JSON.parse(raw);
+    if (data && Array.isArray(data.nodes)) return data.nodes;
+    return [];
+  } catch (err) {
+    console.error("Error leyendo story.json, usando []:", err);
     return [];
   }
 }
 
+function saveStoryNodes(nodes) {
+  try {
+    ensureStoryFile();
+    const payload = {
+      nodes: Array.isArray(nodes) ? nodes : [],
+    };
+    fs.writeFileSync(storyPath, JSON.stringify(payload, null, 2), "utf8");
+  } catch (err) {
+    console.error("Error guardando story.json:", err);
+  }
+}
+
 // ============= REGISTER =============
-// Todos los usuarios nuevos empiezan con 5 dígitos
 app.post("/api/auth/register", (req, res) => {
   const { username, password } = req.body || {};
 
@@ -111,9 +136,8 @@ app.post("/api/auth/register", (req, res) => {
   const newUser = {
     id: Date.now(),
     username,
-    // En producción debería ir hasheada, aquí simple
-    password,
-    digits: 5, // economía: todos empiezan con 5 dígitos
+    password, // sin hash por ahora
+    digits: 5, // todos empiezan con 5 Dígitos
   };
 
   users.push(newUser);
@@ -148,7 +172,12 @@ app.post("/api/auth/login", (req, res) => {
       .json({ ok: false, message: "Credenciales inválidas." });
   }
 
-  // Aquí user ya tiene "digits" garantizado por loadUsers()
+  // aseguramos dígitos
+  if (typeof user.digits !== "number" || Number.isNaN(user.digits)) {
+    user.digits = 5;
+    saveUsers(users);
+  }
+
   res.json({
     ok: true,
     user: {
@@ -160,89 +189,118 @@ app.post("/api/auth/login", (req, res) => {
 });
 
 // =====================
-//   ECONOMÍA: DÍGITOS
+//   ECONOMÍA (DÍGITOS)
 // =====================
 
-// Dar / quitar dígitos a un usuario por ID
-// Body: { userId, amount, reason? }
-app.post("/api/economy/grant", (req, res) => {
-  const { userId, amount, reason } = req.body || {};
-  const delta = Number(amount);
-
-  if (!userId || Number.isNaN(delta)) {
-    return res.status(400).json({
-      ok: false,
-      message: "Parámetros inválidos.",
-    });
-  }
-
-  const users = loadUsers();
-  const index = users.findIndex(
-    (u) => String(u.id) === String(userId)
-  );
-
-  if (index === -1) {
-    return res
-      .status(404)
-      .json({ ok: false, message: "Usuario no encontrado." });
-  }
-
-  const user = users[index];
-
-  if (typeof user.digits !== "number") {
-    user.digits = 5;
-  }
-
-  user.digits += delta;
-
-  if (user.digits < 0) {
-    user.digits = 0;
-  }
-
-  users[index] = user;
-  saveUsers(users);
-
-  console.log(
-    `[ECONOMY] userId=${userId} => ${delta} dígitos` +
-      (reason ? ` | reason: ${reason}` : "")
-  );
-
-  return res.json({
-    ok: true,
-    user: {
-      id: user.id,
-      username: user.username,
-      digits: user.digits,
-    },
-  });
-});
-
-// Obtener balance de un usuario
+// Obtener saldo
 app.get("/api/economy/balance/:userId", (req, res) => {
-  const { userId } = req.params;
+  const userId = Number(req.params.userId);
+  if (!userId) {
+    return res
+      .status(400)
+      .json({ ok: false, message: "userId inválido en la URL." });
+  }
 
   const users = loadUsers();
-  const user = users.find((u) => String(u.id) === String(userId));
+  const user = users.find((u) => u.id === userId);
 
   if (!user) {
-    return res
-      .status(404)
-      .json({ ok: false, message: "Usuario no encontrado." });
+    return res.status(404).json({ ok: false, message: "Usuario no encontrado." });
   }
 
-  if (typeof user.digits !== "number") {
+  if (typeof user.digits !== "number" || Number.isNaN(user.digits)) {
     user.digits = 5;
     saveUsers(users);
   }
 
-  return res.json({
+  res.json({
     ok: true,
-    user: {
-      id: user.id,
-      username: user.username,
-      digits: user.digits,
-    },
+    user: { id: user.id, username: user.username, digits: user.digits },
   });
+});
+
+// Otorgar Dígitos (ganar recompensas)
+app.post("/api/economy/grant", (req, res) => {
+  const { userId, username, amount, reason } = req.body || {};
+
+  const qty = Number(amount);
+  if (!Number.isFinite(qty)) {
+    return res
+      .status(400)
+      .json({ ok: false, message: "amount debe ser numérico." });
+  }
+
+  const users = loadUsers();
+
+  let user = null;
+  if (userId) {
+    user = users.find((u) => u.id === Number(userId));
+  } else if (username) {
+    user = users.find((u) => u.username === username);
+  }
+
+  if (!user) {
+    return res.status(404).json({ ok: false, message: "Usuario no encontrado." });
+  }
+
+  if (typeof user.digits !== "number" || Number.isNaN(user.digits)) {
+    user.digits = 5;
+  }
+
+  user.digits += qty;
+  if (user.digits < 0) user.digits = 0;
+
+  saveUsers(users);
+
+  console.log(
+    `[ECONOMY] +${qty} Dígitos para ${user.username} (${user.id}) – razón: ${
+      reason || "sin razón"
+    }`
+  );
+
+  res.json({
+    ok: true,
+    user: { id: user.id, username: user.username, digits: user.digits },
+  });
+});
+
+// =====================
+//   STORY COMPARTIDA
+// =====================
+
+// Leer historia (todos los nodos)
+app.get("/api/story", (req, res) => {
+  try {
+    const nodes = loadStoryNodes();
+    res.json({ ok: true, nodes });
+  } catch (err) {
+    console.error("Error en GET /api/story:", err);
+    res
+      .status(500)
+      .json({ ok: false, message: "Error al leer la historia en el servidor." });
+  }
+});
+
+// Guardar historia (sobrescribe todos los nodos)
+app.post("/api/story/save", (req, res) => {
+  const { nodes } = req.body || {};
+
+  if (!Array.isArray(nodes)) {
+    return res.status(400).json({
+      ok: false,
+      message: "El cuerpo debe contener un array 'nodes'.",
+    });
+  }
+
+  try {
+    saveStoryNodes(nodes);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Error en POST /api/story/save:", err);
+    res
+      .status(500)
+      .json({ ok: false, message: "Error al guardar la historia en el servidor." });
+  }
 });
 
 // =====================

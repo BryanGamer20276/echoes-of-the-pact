@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Echoes of the Pact - Editor de Historia</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/story/css/story.css" />
+  </head>
+  <body>
+    <!-- FONDO MÁGICO -->
+    <div class="magic-bg">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+      <div class="stars"></div>
+    </div>
+
+    <main class="editor-shell">
+      <!-- CABECERA -->
+      <header class="story-header">
+        <button id="editorBackBtn" class="back-chip" type="button">
+          ← Volver al lector
+        </button>
+
+        <div class="story-header-center">
+          <h1 class="story-title">Editor de Historia</h1>
+          <p class="story-subtitle">
+            Crea capítulos, decisiones y preguntas con recompensas.
+          </p>
+        </div>
+
+        <div class="user-chip">
+          <span class="chip-label">Editor como</span>
+          <span id="editorUsername" class="chip-name">user</span>
+        </div>
+      </header>
+
+      <!-- CONTENIDO -->
+      <section class="editor-main">
+        <!-- LADO IZQUIERDO: LISTA DE PÁGINAS -->
+        <aside class="editor-sidebar">
+          <div class="story-sidebar-card">
+            <div class="sidebar-header-row">
+              <div>
+                <h2 class="sidebar-title">Páginas</h2>
+                <p class="sidebar-text">
+                  Capítulos y preguntas de la historia.
+                </p>
+              </div>
+            </div>
+
+            <div class="sidebar-actions">
+              <button
+                id="newChapterBtn"
+                type="button"
+                class="btn-secondary btn-small"
+              >
+                + Capítulo
+              </button>
+              <button
+                id="newQuestionBtn"
+                type="button"
+                class="btn-secondary btn-small"
+              >
+                + Pregunta
+              </button>
+            </div>
+
+            <div id="nodeList" class="editor-node-list"></div>
+          </div>
+        </aside>
+
+        <!-- LADO DERECHO: EDITOR -->
+        <article class="editor-panel">
+          <!-- META / TÍTULO / TIPO / GUARDAR -->
+          <div class="editor-meta-card">
+            <div class="editor-meta-row">
+              <div class="editor-field">
+                <label for="nodeTitle">Título</label>
+                <input
+                  id="nodeTitle"
+                  type="text"
+                  class="editor-input"
+                  placeholder="Prólogo, Capítulo 1, Pregunta..."
+                />
+              </div>
+
+              <div class="editor-field editor-field--small">
+                <label for="nodeType">Tipo de página</label>
+                <select id="nodeType" class="editor-select">
+                  <option value="chapter">Capítulo</option>
+                  <option value="question">Pregunta</option>
+                </select>
+              </div>
+
+              <div class="editor-actions">
+                <button
+                  id="saveNodeBtn"
+                  type="button"
+                  class="btn-primary"
+                >
+                  Guardar página
+                </button>
+              </div>
+            </div>
+
+            <!-- TOOLBAR -->
+            <div id="editorToolbar" class="editor-toolbar">
+              <div class="toolbar-group">
+                <button
+                  type="button"
+                  class="toolbar-btn"
+                  data-cmd="bold"
+                  title="Negrita"
+                >
+                  B
+                </button>
+                <button
+                  type="button"
+                  class="toolbar-btn"
+                  data-cmd="italic"
+                  title="Cursiva"
+                >
+                  I
+                </button>
+                <button
+                  type="button"
+                  class="toolbar-btn"
+                  data-cmd="underline"
+                  title="Subrayado"
+                >
+                  U
+                </button>
+                <button
+                  type="button"
+                  class="toolbar-btn"
+                  data-cmd="strikeThrough"
+                  title="Tachado"
+                >
+                  S
+                </button>
+              </div>
+
+              <div class="toolbar-group">
+                <button
+                  type="button"
+                  class="toolbar-btn"
+                  data-cmd="justifyLeft"
+                  title="Alinear a la izquierda"
+                >
+                  ⟸
+                </button>
+                <button
+                  type="button"
+                  class="toolbar-btn"
+                  data-cmd="justifyCenter"
+                  title="Centrar"
+                >
+                  ⟺
+                </button>
+                <button
+                  type="button"
+                  class="toolbar-btn"
+                  data-cmd="justifyRight"
+                  title="Alinear a la derecha"
+                >
+                  ⟹
+                </button>
+              </div>
+
+              <div class="toolbar-group">
+                <button
+                  type="button"
+                  class="toolbar-btn"
+                  data-cmd="insertUnorderedList"
+                  title="Lista sin orden"
+                >
+                  • Lista
+                </button>
+                <button
+                  type="button"
+                  class="toolbar-btn"
+                  data-cmd="insertOrderedList"
+                  title="Lista numerada"
+                >
+                  1. Lista
+                </button>
+              </div>
+
+              <div class="toolbar-group">
+                <select
+                  class="toolbar-select"
+                  data-select-cmd="fontSize"
+                  title="Tamaño de texto"
+                >
+                  <option value="3">Normal</option>
+                  <option value="4">Grande</option>
+                  <option value="5">Título</option>
+                  <option value="6">Título grande</option>
+                </select>
+              </div>
+
+              <div class="toolbar-group">
+                <button
+                  type="button"
+                  class="toolbar-btn"
+                  data-action="highlight"
+                  title="Resaltar texto"
+                >
+                  ✦
+                </button>
+                <button
+                  type="button"
+                  class="toolbar-btn"
+                  data-action="quote"
+                  title="Bloque de cita"
+                >
+                  ❝❞
+                </button>
+                <button
+                  type="button"
+                  class="toolbar-btn"
+                  data-action="separator"
+                  title="Separador"
+                >
+                  ─
+                </button>
+                <button
+                  type="button"
+                  class="toolbar-btn"
+                  data-action="clean"
+                  title="Limpiar formato"
+                >
+                  ⌫
+                </button>
+              </div>
+
+              <div class="toolbar-group">
+                <button
+                  type="button"
+                  id="imageUploadBtn"
+                  class="toolbar-btn"
+                  data-action="image"
+                  title="Insertar imagen"
+                >
+                  Imagen
+                </button>
+                <input
+                  id="imageUploadInput"
+                  type="file"
+                  accept="image/*"
+                  hidden
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- ÁREA DE TEXTO -->
+          <div class="editor-content-card">
+            <div
+              id="nodeContent"
+              class="editor-content"
+              contenteditable="true"
+            >
+              Escribe aquí el capítulo de la historia. Puedes insertar imágenes
+              y usar texto enriquecido.
+            </div>
+          </div>
+
+          <!-- CONFIGURACIÓN DE PREGUNTA -->
+          <div id="questionInspector" class="editor-question-card hidden">
+            <h3 class="question-title">Configuración de pregunta</h3>
+            <p class="question-help">
+              Define la recompensa y las posibles respuestas. Marca cuál es la
+              correcta.
+            </p>
+
+            <div class="question-reward-row">
+              <label for="questionRewardInput">
+                Recompensa si responde bien (Dígitos)
+              </label>
+              <input
+                id="questionRewardInput"
+                type="number"
+                min="0"
+                step="1"
+                class="editor-input editor-input--small"
+                value="0"
+              />
+            </div>
+
+            <div class="question-answers-header">
+              <span>Respuestas</span>
+              <button
+                id="addAnswerBtn"
+                type="button"
+                class="btn-secondary btn-small"
+              >
+                + Añadir respuesta
+              </button>
+            </div>
+
+            <div id="questionAnswers" class="question-answers-list"></div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script src="/story/js/storyShared.js"></script>
+    <script src="/story/js/storyEditorToolbar.js"></script>
+    <script src="/story/js/storyEditorQuestions.js"></script>
+    <script src="/story/js/storyEditor.js"></script>
+  </body>
+</html>
